@@ -1,0 +1,4 @@
+# Дополнительные пакеты для образа Airflow
+apache-airflow-providers-postgres==5.10.0
+psycopg2-binary==2.9.9
+clickhouse-connect==0.7.19
