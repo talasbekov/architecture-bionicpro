@@ -45,8 +45,10 @@ class ReportStorage:
     def build_key(user_id: str, date_from: str, date_to: str, version: str) -> str:
         """Ключ включает пользователя и период, поэтому отчёт находится за одно обращение.
         Версия витрины в ключе даёт естественную инвалидацию: после пересчёта ETL
-        меняется путь, старый объект в CDN больше не запрашивается."""
-        return f"{user_id}/{version}/{date_from}_{date_to}.json"
+        меняется путь, старый объект в CDN больше не запрашивается. Имя витрины тоже
+        входит в ключ — иначе после переключения на витрину CDC отдавались бы
+        объекты, посчитанные по старой."""
+        return f"{user_id}/{settings.mart_table}/{version}/{date_from}_{date_to}.json"
 
     def exists(self, key: str) -> bool:
         try:

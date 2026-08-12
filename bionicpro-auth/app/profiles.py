@@ -18,31 +18,39 @@ class ProfileStore:
     def __init__(self) -> None:
         self._pool: Optional[asyncpg.Pool] = None
 
-    async def connect(self) -> None:
+    async def connect(self) -> Optional[asyncpg.Pool]:
+        """Подключение ленивое: на старте CRM может быть ещё не поднята,
+        поэтому пробуем снова при каждом обращении, а не один раз при запуске."""
+        if self._pool is not None:
+            return self._pool
         try:
             self._pool = await asyncpg.create_pool(CRM_DSN, min_size=1, max_size=5)
         except Exception as exc:
             # сервис аутентификации не должен падать, если CRM недоступна
-            log.warning("Нет подключения к CRM, профили сохраняться не будут: %s", exc)
+            log.warning("Нет подключения к CRM, профили пока не сохраняем: %s", exc)
             self._pool = None
+        return self._pool
 
     async def close(self) -> None:
         if self._pool is not None:
             await self._pool.close()
 
     async def exists(self, user_id: str) -> bool:
-        if self._pool is None:
+        pool = await self.connect()
+        if pool is None:
             return True  # без БД не блокируем вход экраном согласия
-        async with self._pool.acquire() as conn:
+        async with pool.acquire() as conn:
             row = await conn.fetchrow(
                 "SELECT 1 FROM user_profiles WHERE user_id = $1", user_id
             )
         return row is not None
 
     async def upsert(self, user_id: str, claims: dict, provider: str) -> None:
-        if self._pool is None:
+        pool = await self.connect()
+        if pool is None:
+            log.warning("CRM недоступна, профиль %s не сохранён", user_id)
             return
-        async with self._pool.acquire() as conn:
+        async with pool.acquire() as conn:
             await conn.execute(
                 """
                 INSERT INTO user_profiles (

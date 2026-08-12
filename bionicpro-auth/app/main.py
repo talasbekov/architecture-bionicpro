@@ -206,7 +206,14 @@ async def consent(request: Request):
         response.delete_cookie(settings.session_cookie, path="/")
         return response
 
-    claims = await keycloak.userinfo(session["access_token"])
+    # Данные профиля берём из access_token: туда их кладёт Keycloak,
+    # в том числе то, что пришло от внешнего провайдера (Яндекс ID).
+    claims = {
+        "sub": session.get("sub"),
+        "preferred_username": session.get("username"),
+        "email": session.get("email"),
+        "name": session.get("name"),
+    }
     await profiles.upsert(session["sub"], claims, session.get("identity_provider", "keycloak"))
     session["consent_granted"] = True
     await store.update(session_id, session)

@@ -181,18 +181,19 @@ ORDER BY mart;
 DROP VIEW IF EXISTS bionicpro.mv_etl_watermark_cdc;
 CREATE MATERIALIZED VIEW bionicpro.mv_etl_watermark_cdc TO bionicpro.etl_watermark AS
 SELECT
-    'user_report_mart_cdc' AS mart,
-    max(report_date)       AS processed_until,
-    now()                  AS updated_at
+    'user_report_mart_cdc'                    AS mart,
+    -- текущие сутки ещё не закрыты, в отчёт они попадать не должны
+    least(max(report_date), today() - 1)      AS processed_until,
+    now()                                     AS updated_at
 FROM bionicpro.user_report_mart_cdc;
 
 -- 6. Пересчёт водяного знака по всей витрине (первичная инициализация
 --    и «ремонт» после бэкфилла старых периодов).
 INSERT INTO bionicpro.etl_watermark
 SELECT
-    'user_report_mart_cdc' AS mart,
-    max(report_date)       AS processed_until,
-    now()                  AS updated_at
+    'user_report_mart_cdc'               AS mart,
+    least(max(report_date), today() - 1) AS processed_until,
+    now()                                AS updated_at
 FROM bionicpro.user_report_mart_cdc
 -- пока витрина пуста, отметку не пишем: иначе в неё попал бы 1970-01-01
 HAVING count() > 0;

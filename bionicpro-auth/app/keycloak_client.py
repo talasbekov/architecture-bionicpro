@@ -74,11 +74,3 @@ class KeycloakClient:
         except httpx.HTTPError:
             # выход на стороне Keycloak не должен ломать выход из нашего приложения
             pass
-
-    async def userinfo(self, access_token: str) -> dict:
-        response = await self._client.get(
-            settings.userinfo_endpoint,
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-        response.raise_for_status()
-        return response.json()

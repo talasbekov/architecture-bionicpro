@@ -65,9 +65,5 @@ class Settings:
     def logout_endpoint(self) -> str:
         return f"{self.issuer}/protocol/openid-connect/logout"
 
-    @property
-    def userinfo_endpoint(self) -> str:
-        return f"{self.issuer}/protocol/openid-connect/userinfo"
-
 
 settings = Settings()
