@@ -62,6 +62,39 @@ else
 fi
 
 echo
+echo "Ждём готовности коннектора ..."
+attempt=1
+until curl -sS "$CONNECT_URL/connectors/$CONNECTOR_NAME/status" 2>/dev/null | grep -q '"state":"RUNNING"'; do
+    if [ "$attempt" -ge "$WAIT_ATTEMPTS" ]; then
+        echo "Коннектор не перешёл в RUNNING" >&2
+        curl -sS "$CONNECT_URL/connectors/$CONNECTOR_NAME/status"
+        exit 1
+    fi
+    attempt=$((attempt + 1))
+    sleep "$WAIT_DELAY"
+done
+
 echo "Статус коннектора:"
 curl -sS "$CONNECT_URL/connectors/$CONNECTOR_NAME/status"
 echo
+
+# Снапшот справочников доезжает в ClickHouse через Kafka с задержкой,
+# и только после этого имеет смысл считать CDC-витрину.
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+CH="docker compose -f $REPO_DIR/docker-compose.yaml exec -T clickhouse clickhouse-client -u analytics --password analytics_password -d bionicpro"
+
+echo "Ждём снапшот справочников CRM в ClickHouse ..."
+attempt=1
+until [ "$($CH -q 'SELECT count() FROM crm_clients_cdc' 2>/dev/null || echo 0)" != "0" ] \
+   && [ "$($CH -q 'SELECT count() FROM crm_prostheses_cdc' 2>/dev/null || echo 0)" != "0" ]; do
+    if [ "$attempt" -ge "$WAIT_ATTEMPTS" ]; then
+        echo "Данные CDC не появились в ClickHouse" >&2
+        exit 1
+    fi
+    attempt=$((attempt + 1))
+    sleep "$WAIT_DELAY"
+done
+
+echo "Считаем витрину user_report_mart_cdc по накопленной телеметрии ..."
+$CH --multiquery < "$REPO_DIR/clickhouse/backfill_user_report_mart_cdc.sql"
+echo "Готово, строк в витрине: $($CH -q 'SELECT count() FROM user_report_mart_cdc FINAL')"
