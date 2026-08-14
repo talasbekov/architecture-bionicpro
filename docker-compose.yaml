@@ -174,14 +174,25 @@ services:
   # ---------- ETL ----------
   airflow:
     image: apache/airflow:2.9.3-python3.11
-    command: ["standalone"]
+    # standalone сам заводит admin со случайным паролем, поэтому пользователя
+    # создаём (или переустанавливаем пароль) явно — иначе в UI не войти
+    command:
+      - bash
+      - -c
+      - |
+        airflow db migrate
+        airflow users create -u admin -p admin -r Admin -f Admin -l User -e admin@example.com
+        airflow users reset-password -u admin --password admin
+        airflow users add-role -u admin -r Admin
+        exec airflow standalone
     environment:
       AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      # DAG должен посчитать витрину сразу после подъёма стенда, а не ждать,
+      # пока его снимут с паузы руками
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://crm_user:crm_password@crm_db:5432/airflow
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
-      _AIRFLOW_WWW_USER_USERNAME: admin
-      _AIRFLOW_WWW_USER_PASSWORD: admin
       _PIP_ADDITIONAL_REQUIREMENTS: apache-airflow-providers-postgres==5.11.1 clickhouse-connect==0.7.19
       CRM_DB_HOST: crm_db
       CRM_DB_PORT: "5432"
