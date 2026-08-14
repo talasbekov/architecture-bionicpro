@@ -1,0 +1,28 @@
+Проверка стенда BionicPRO, поднятого с нуля
+
+== Задание 1. Аутентификация и доступ ==
+админка Keycloak, admin/admin           -> 200
+Airflow, admin/admin                    -> 200 на /home
+reports-api без токена                  -> 401
+вход prothetic1 с одноразовым кодом     -> 200 {"authenticated":true,"username":"prothetic1","name":"Алексей Морозов","email":"prothetic1@bionicpro.ru","roles":["prothetic_user"],"identityProvider":"keycloak","consentGranted":false}
+ротация идентификатора сессии           -> да
+отчёт без согласия на обработку данных  -> 403 {"detail":"Требуется согласие на обработку данных"}
+
+== Задание 2. Витрина и сервис отчётов ==
+crm_to_clickhouse_etl | scheduled__2026-08-13T02:00:00+00:00 | success | 2026-08-13T02:00:00+00:00 | 2026-08-14T10:54:58.574740+00:00 | 2026-08-14T10:55:01.828820+00:00
+строк в user_report_mart: 70
+данные обработаны по: 2026-08-13
+свой отчёт                              -> 200 {"userId": "prothetic1", "period": {"from": "2026-07-01", "to": "2026-08-13"}, "dataProcessedUntil": "2026-08-13", "cached": true}
+чужой отчёт                             -> 403 {"detail":"Доступен только собственный отчёт"}
+
+== Задание 3. S3 и CDN ==
+ссылка: http://localhost:8081/reports/prothetic1/user_report_mart/2026-08-13/2026-07-01_2026-08-13.json
+  запрос 1: 200, X-Cache-Status: MISS
+  запрос 2: 200, X-Cache-Status: HIT
+подмена пути на чужой отчёт             -> 403
+
+== Задание 4. CDC ==
+{"name":"crm-connector","connector":{"state":"RUNNING","worker_id":"172.18.0.13:8083"},"tasks":[{"id":0,"state":"RUNNING","worker_id":"172.18.0.13:8083"}],"type":"source"}
+crm_clients_cdc: 6
+crm_prostheses_cdc: 10
+user_report_mart_cdc: 600

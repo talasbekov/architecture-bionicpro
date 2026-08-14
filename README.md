@@ -7,7 +7,7 @@
 
 | Каталог | Что внутри |
 |---|---|
-| `docs/` | Диаграммы C4 в draw.io: исходная и новая (`BionicPRO_C4_sprint9.drawio.xml`, две страницы) |
+| `docs/` | Диаграммы C4 в draw.io: исходная и новая (`BionicPRO_C4_sprint9.drawio.xml`, две страницы), скриншоты поднятого стенда в `screenshots/` |
 | `bionicpro-auth/` | Бэкенд аутентификации (BFF): PKCE, сессии, работа с токенами |
 | `frontend/` | React-приложение, работает только с сессионной cookie |
 | `reports-api/` | Сервис отчётов: ClickHouse + S3 + CDN |
@@ -21,37 +21,68 @@
 
 ## Запуск
 
+Нужен Docker с плагином compose, свободные порты из таблицы ниже и
+примерно 6 ГБ памяти — стенд поднимает Keycloak, ClickHouse, Kafka и Airflow.
+
 ```bash
-docker compose up -d --build
+docker compose up -d --build     # первый запуск занимает 5–10 минут
+./debezium/register-connector.sh # CDC для задания 4, после старта стенда
 ```
+
+Отдельно ничего инициализировать не нужно: Airflow сам заводит пользователя,
+снимает DAG с паузы и считает витрину `user_report_mart` через минуту после
+старта, а `register-connector.sh` дожидается снапшота Debezium и считает
+CDC-витрину `user_report_mart_cdc`.
+
+Проверить, что всё поднялось:
+
+```bash
+docker compose ps
+docker compose exec airflow airflow dags list-runs -d crm_to_clickhouse_etl
+curl -s http://localhost:8083/connectors/crm-connector/status
+```
+
+Остановить и убрать данные: `docker compose down -v`.
+
+### Адреса и учётные записи
 
 | Сервис | Адрес | Учётные данные |
 |---|---|---|
-| Фронтенд | http://localhost:3000 | prothetic1 / prothetic1 |
-| bionicpro-auth | http://localhost:8000 | — |
-| Keycloak | http://localhost:8080 | admin / admin |
-| Сервис отчётов | http://localhost:8100 | только по токену |
-| CDN (Nginx) | http://localhost:8081 | — |
-| Airflow | http://localhost:8082 | admin / admin |
-| MinIO | http://localhost:9001 | minioadmin / minioadmin |
+| Фронтенд | http://localhost:3000 | вход через Keycloak, `prothetic1 / prothetic1` |
+| Keycloak | http://localhost:8080 | админка — `admin / admin` |
+| bionicpro-auth | http://localhost:8000 | только по сессионной cookie |
+| Сервис отчётов | http://localhost:8100 | только по access-токену |
+| CDN (Nginx) | http://localhost:8081 | по подписанной ссылке из отчёта |
+| Airflow | http://localhost:8082 | `admin / admin` |
+| MinIO | http://localhost:9001 | `minioadmin / minioadmin` |
 | Kafka Connect | http://localhost:8083 | — |
+| ClickHouse | http://localhost:8123 | `analytics / analytics_password`, база `bionicpro` |
+| CRM (PostgreSQL) | localhost:5436 | `crm_user / crm_password`, база `crm` |
 
-Стенд поднимается «с нуля» и сразу готов к проверке: Airflow заводит
-пользователя `admin/admin` и снимает DAG с паузы, поэтому витрина
-`user_report_mart` считается через минуту после старта — отдельно ничего
-запускать не нужно.
+Пользователи реалма `reports-realm` — пароль совпадает с логином, кроме
+пользователей из LDAP:
 
-При первом входе пользователя (`prothetic1 / prothetic1`) Keycloak попросит
-настроить одноразовый пароль — отсканируйте QR-код в Google Authenticator или
-FreeOTP. Дальше вход всегда в два шага. Дальше фронтенд спросит согласие на
-обработку данных: без него отчёты не отдаются.
+| Логин | Пароль | Роль | Откуда | Что показывает |
+|---|---|---|---|---|
+| `prothetic1` | `prothetic1` | `prothetic_user` | Keycloak | основной сценарий: отчёт по двум протезам |
+| `prothetic2` | `prothetic2` | `prothetic_user` | Keycloak | второй владелец — на нём видно, что чужой отчёт не отдаётся |
+| `prothetic3` | `prothetic3` | `prothetic_user` | Keycloak | ещё один владелец |
+| `user1`, `user2` | `user1`, `user2` | `user` | Keycloak | без роли `prothetic_user` — отчёт закрыт |
+| `john.doe` | `password` | `prothetic_user` | LDAP | роль приезжает из группы каталога |
+| `jane.smith` | `password` | `user` | LDAP | LDAP-пользователь без доступа к отчётам |
+| `alex.johnson` | `password` | `prothetic_user` | LDAP | ещё один пользователь представительства |
 
-Регистрация CDC-коннектора после старта — скрипт ждёт снапшот Debezium и сам
-считает CDC-витрину:
+### Первый вход
 
-```bash
-./debezium/register-connector.sh
-```
+1. Откройте http://localhost:3000 и нажмите «Войти» — фронтенд уходит
+   в Keycloak, токенов он не видит.
+2. Введите `prothetic1 / prothetic1`.
+3. Keycloak попросит настроить одноразовый пароль — отсканируйте QR-код
+   в Google Authenticator или FreeOTP и введите код. Дальше вход всегда
+   в два шага.
+4. Фронтенд покажет экран согласия на обработку данных. Без согласия отчёты
+   не отдаются — это часть задания 1.
+5. Выберите период и нажмите «Получить отчёт».
 
 ## Задание 1. Безопасность
 
@@ -154,4 +185,34 @@ curl -i http://localhost:8100/reports
 
 # чужой отчёт не отдаётся даже с валидным токеном
 curl -i "http://localhost:8000/api/reports?user=prothetic2" -b "bp_session=<ваша сессия>"
+
+# витрина посчитана, водяной знак сдвинут
+docker compose exec clickhouse clickhouse-client -u analytics --password analytics_password \
+  -d bionicpro -q "select count() from user_report_mart; select max(processed_until) from etl_watermark"
+
+# CDC: правка в CRM доезжает в ClickHouse за секунды
+docker compose exec crm_db psql -U crm_user -d crm \
+  -c "update clients set full_name='Проверка CDC' where user_id='prothetic1'"
+docker compose exec clickhouse clickhouse-client -u analytics --password analytics_password \
+  -d bionicpro -q "select user_id, full_name from crm_clients_cdc final where user_id='prothetic1'"
 ```
+
+Ссылку на отчёт из ответа можно дёрнуть дважды подряд: первый раз Nginx
+ответит `X-Cache-Status: MISS`, второй — `HIT`. Подмена пути на чужой
+(`/reports/prothetic2/...`) даёт 403, потому что подпись считается по пути.
+
+## Скриншоты
+
+Снято на стенде, поднятом с нуля — `docs/screenshots/`:
+
+| Файл | Что на нём |
+|---|---|
+| `01-keycloak-admin.png` | админка Keycloak под `admin/admin`, пользователи реалма |
+| `02-airflow-login.png`, `03-airflow-dag.png` | вход в Airflow под `admin/admin` и успешный прогон ETL |
+| `04-frontend-start.png` | стартовый экран фронтенда |
+| `05-keycloak-login.png`, `06-keycloak-otp.png` | вход `prothetic1` и второй шаг с одноразовым кодом |
+| `07-frontend-consent-request.png`, `08-frontend-consent-granted.png` | согласие на обработку данных |
+| `09-frontend-report.png` | сформированный отчёт со ссылкой на скачивание |
+| `10-minio-reports.png` | объект отчёта в бакете MinIO |
+| `11-debezium-status.png` | статус CDC-коннектора |
+| `checks.txt` | вывод проверок: 401 без токена, 403 на чужой отчёт, состояние витрин |
