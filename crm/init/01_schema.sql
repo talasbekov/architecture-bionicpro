@@ -27,9 +27,9 @@ CREATE INDEX IF NOT EXISTS idx_prostheses_client_id ON prostheses (client_id);
 -- Тестовые клиенты. prothetic1..3 заведены прямо в Keycloak,
 -- john.doe / jane.smith / alex.johnson приезжают из LDAP.
 INSERT INTO clients (user_id, full_name, email, country) VALUES
-    ('prothetic1',   'Иван Петров',      'prothetic1@example.com', 'Russia'),
-    ('prothetic2',   'Мария Соколова',   'prothetic2@example.com', 'Russia'),
-    ('prothetic3',   'Дмитрий Кузнецов', 'prothetic3@example.com', 'Russia'),
+    ('prothetic1',   'Алексей Морозов',  'prothetic1@bionicpro.ru', 'Russia'),
+    ('prothetic2',   'Ольга Никитина',   'prothetic2@bionicpro.ru', 'Russia'),
+    ('prothetic3',   'Дмитрий Волков',   'prothetic3@bionicpro.ru', 'Russia'),
     ('john.doe',     'John Doe',         'john@example.com',       'Kazakhstan'),
     ('jane.smith',   'Jane Smith',       'jane@example.com',       'Kazakhstan'),
     ('alex.johnson', 'Alex Johnson',     'alex@example.com',       'Kazakhstan')

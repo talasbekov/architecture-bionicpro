@@ -499,7 +499,9 @@
         }
       ],
       "disableableCredentialTypes": [],
-      "requiredActions": [],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
       "realmRoles": [
         "administrator"
       ],
@@ -618,7 +620,9 @@
         }
       ],
       "disableableCredentialTypes": [],
-      "requiredActions": [],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
       "realmRoles": [
         "prothetic_user"
       ],
@@ -644,7 +648,9 @@
         }
       ],
       "disableableCredentialTypes": [],
-      "requiredActions": [],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
       "realmRoles": [
         "prothetic_user"
       ],
@@ -670,7 +676,9 @@
         }
       ],
       "disableableCredentialTypes": [],
-      "requiredActions": [],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
       "realmRoles": [
         "prothetic_user"
       ],
@@ -696,7 +704,9 @@
         }
       ],
       "disableableCredentialTypes": [],
-      "requiredActions": [],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
       "realmRoles": [
         "user"
       ],
@@ -722,7 +732,9 @@
         }
       ],
       "disableableCredentialTypes": [],
-      "requiredActions": [],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
       "realmRoles": [
         "user"
       ],
